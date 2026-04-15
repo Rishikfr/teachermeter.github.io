@@ -1,0 +1,15 @@
+{
+  "name": "mongo-api",
+  "version": "1.0.0",
+  "description": "Express API connected to MongoDB Atlas",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "mongoose": "^7.0.0"
+  }
+}

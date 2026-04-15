@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TeacherMeter</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; }
+    li { padding: 6px 0; border-bottom: 1px solid #eee; }
+  </style>
+</head>
+<body>
+  <h1>Users from MongoDB</h1>
+  <ul id="user-list">Loading...</ul>
+
+  <script>
+    // TODO: Replace this URL with your actual Render URL after deploying
+    const API_URL = 'https://my-mongo-api-7414.onrender.com/api/users';
+
+    fetch(API_URL)
+      .then(response => response.json())
+      .then(users => {
+        const list = document.getElementById('user-list');
+        if (users.length === 0) {
+          list.innerHTML = '<li>No users in the database yet</li>';
+        } else {
+          list.innerHTML = users
+            .map(u => `<li>${u.username} — ${u.email}</li>`)
+            .join('');
+        }
+      })
+      .catch(err => {
+        document.getElementById('user-list').innerHTML = '<li>Error loading data. Check console.</li>';
+        console.error(err);
+      });
+  </script>
+</body>
+</html>
