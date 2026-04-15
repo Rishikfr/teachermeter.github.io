@@ -2,34 +2,110 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TeacherMeter</title>
   <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 0 20px; }
-    li { padding: 6px 0; border-bottom: 1px solid #eee; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, sans-serif; background: #f5f5f5; color: #222; }
+    header { background: #1a1a2e; color: white; padding: 20px; text-align: center; }
+    header h1 { font-size: 1.8rem; }
+    header p { opacity: 0.7; margin-top: 4px; }
+    #search { display: block; width: 100%; max-width: 500px; margin: 20px auto; padding: 10px 16px; font-size: 1rem; border: 1px solid #ccc; border-radius: 8px; }
+    #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; padding: 0 20px 40px; max-width: 1200px; margin: 0 auto; }
+    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .card h2 { font-size: 1.1rem; margin-bottom: 4px; }
+    .card .meta { color: #666; font-size: 0.85rem; margin-bottom: 12px; }
+    .stats { display: flex; gap: 16px; margin-bottom: 12px; }
+    .stat { text-align: center; }
+    .stat .value { font-size: 1.4rem; font-weight: bold; color: #1a1a2e; }
+    .stat .label { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+    .difficulty-bar { background: #eee; border-radius: 4px; height: 6px; margin-bottom: 12px; }
+    .difficulty-fill { height: 6px; border-radius: 4px; background: linear-gradient(to right, #4caf50, #ff9800, #f44336); }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .tag { background: #e8f0fe; color: #1a73e8; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; }
+    .review { font-size: 0.85rem; color: #555; font-style: italic; border-left: 3px solid #ddd; padding-left: 8px; margin-top: 8px; }
+    #status { text-align: center; padding: 40px; color: #888; }
   </style>
 </head>
 <body>
-  <h1>Users from MongoDB</h1>
-  <ul id="user-list">Loading...</ul>
+  <header>
+    <h1>TeacherMeter</h1>
+    <p>Browse teacher ratings from real students</p>
+  </header>
+
+  <input type="text" id="search" placeholder="Search by teacher name, subject, or school..." oninput="filterTeachers()">
+
+  <div id="status">Loading teachers...</div>
+  <div id="grid"></div>
 
   <script>
-    // TODO: Replace this URL with your actual Render URL after deploying
-    const API_URL = 'https://my-mongo-api-7414.onrender.com/api/users';
+    const API_URL = 'https://my-mongo-api-7414.onrender.com/api/teachers';
+    let allTeachers = [];
+
+    function avgDifficulty(ratings) {
+      if (!ratings || ratings.length === 0) return 0;
+      return ratings.reduce((sum, r) => sum + (r.difficulty || 0), 0) / ratings.length;
+    }
+
+    function topTags(ratings) {
+      const counts = {};
+      (ratings || []).forEach(r => (r.teacherTags || []).forEach(t => counts[t] = (counts[t] || 0) + 1));
+      return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 4).map(e => e[0]);
+    }
+
+    function latestReview(ratings) {
+      const withText = (ratings || []).filter(r => r.reviewText).sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      return withText[0]?.reviewText || null;
+    }
+
+    function renderCard(t) {
+      const diff = avgDifficulty(t.ratings);
+      const pct = (diff / 5) * 100;
+      const tags = topTags(t.ratings);
+      const review = latestReview(t.ratings);
+      return `
+        <div class="card">
+          <h2>${t.name || 'Unknown'}</h2>
+          <div class="meta">${t.subject || ''} · ${t.school || ''}</div>
+          <div class="stats">
+            <div class="stat">
+              <div class="value">${diff > 0 ? diff.toFixed(1) : '—'}</div>
+              <div class="label">Difficulty /5</div>
+            </div>
+            <div class="stat">
+              <div class="value">${(t.ratings || []).length}</div>
+              <div class="label">Ratings</div>
+            </div>
+            <div class="stat">
+              <div class="value">${(t.gradeSubmissions || []).length}</div>
+              <div class="label">Grade Reports</div>
+            </div>
+          </div>
+          ${diff > 0 ? `<div class="difficulty-bar"><div class="difficulty-fill" style="width:${pct}%"></div></div>` : ''}
+          ${tags.length ? `<div class="tags">${tags.map(tag => `<span class="tag">${tag}</span>`).join('')}</div>` : ''}
+          ${review ? `<div class="review">"${review}"</div>` : ''}
+        </div>`;
+    }
+
+    function filterTeachers() {
+      const q = document.getElementById('search').value.toLowerCase();
+      const filtered = allTeachers.filter(t =>
+        (t.name || '').toLowerCase().includes(q) ||
+        (t.subject || '').toLowerCase().includes(q) ||
+        (t.school || '').toLowerCase().includes(q)
+      );
+      document.getElementById('grid').innerHTML = filtered.map(renderCard).join('');
+    }
 
     fetch(API_URL)
-      .then(response => response.json())
-      .then(users => {
-        const list = document.getElementById('user-list');
-        if (users.length === 0) {
-          list.innerHTML = '<li>No users in the database yet</li>';
-        } else {
-          list.innerHTML = users
-            .map(u => `<li>${u.username} — ${u.email}</li>`)
-            .join('');
-        }
+      .then(r => r.json())
+      .then(teachers => {
+        allTeachers = teachers.sort((a, b) => (b.ratings?.length || 0) - (a.ratings?.length || 0));
+        document.getElementById('status').style.display = 'none';
+        document.getElementById('grid').innerHTML = allTeachers.map(renderCard).join('');
       })
       .catch(err => {
-        document.getElementById('user-list').innerHTML = '<li>Error loading data. Check console.</li>';
+        document.getElementById('status').textContent = 'Failed to load teachers. Please try again later.';
         console.error(err);
       });
   </script>
